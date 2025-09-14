@@ -1,0 +1,1 @@
+// CardContent.jsx component

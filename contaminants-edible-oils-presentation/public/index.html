@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contaminants in Edible Oils Presentation</title>
+    <!-- Tailwind CSS CDN (JIT mode for development/demonstration) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Basic reset and font for better presentation */
+        html, body, #root {
+            height: 100%; /* Ensure main containers take full height */
+            margin: 0;
+            padding: 0;
+            font-family: ui-sans-serif, system-ui, -apple-system, 
+BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", 
+sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color 
+Emoji";
+        }
+        /* Make scrollbar track visible for tables */
+        .overflow-x-auto::-webkit-scrollbar-track {
+            background-color: #f1f1f1;
+        }
+        .overflow-x-auto::-webkit-scrollbar {
+            height: 8px;
+            background-color: #f1f1f1;
+        }
+        .overflow-x-auto::-webkit-scrollbar-thumb {
+            background-color: #d1d5db; /* gray-400 */
+            border-radius: 4px;
+        }
+        .overflow-x-auto::-webkit-scrollbar-thumb:hover {
+            background-color: #9ca3af; /* gray-500 */
+        }
+    </style>
+    <!-- React and ReactDOM CDNs -->
+    <script crossorigin 
+src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin 
+src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Framer Motion CDN (MOVED HERE - before Babel and your script) -->
+    <script 
+src="https://unpkg.com/framer-motion@11.0.8/dist/framer-motion.min.js"></script>
+    <!-- Babel CDN for in-browser JSX transpilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // Debugging: Confirm script starts
+        console.log("React script started.");
+        const { useState, useMemo, useEffect } = React;
+        // Now, window.FramerMotion should be defined when this line runs
+        const { motion } = window.FramerMotion;
+        // --- Lightweight UI wrappers (matching your provided code) ---
+        const Card = ({ className = "", children }) => (
+            <div className={`rounded-2xl shadow-md border border-gray-200 bg-white 
+${className}`}>
+                {children}
+            </div>
+        );
+        const CardHeader = ({ children, className = "" }) => (
+            <div className={`p-6 border-b border-gray-100 ${className}`}>
+                {children}
+            </div>
+        );
+        const CardTitle = ({ children, className = "" }) => (
+            <h2 className={`text-xl font-semibold tracking-tight ${className}`}>
+                {children}
+            </h2>
+        );
+        const CardContent = ({ children, className = "" }) => (
+            <div className={`p-6 ${className}`}>
+                {children}
+            </div>
+        );
+        const Badge = ({ children, className = "" }) => (
+            <span className={`inline-flex items-center rounded-full px-3 py-1 
+text-xs font-medium ring-1 ring-gray-300 ${className}`}>
+                {children}
+            </span>
+        );
+        const Section = ({ title, children, id }) => (
+            <section id={id} className="scroll-mt-24">
+                <Card className="mb-8">
+                    <CardHeader>
+                        <CardTitle>{title}</CardTitle>
+                    </CardHeader>
+                    <CardContent>{children}</CardContent>
+                </Card>
+
+            </section>
+        );
+        const Pill = ({ label }) => (
+            <Badge className="bg-gray-50 text-gray-700">
+                {label}
+            </Badge>
+        );
+        // --- Generic Input Component for DataTable ---
+        const Input = ({ placeholder, value, onChange, className }) => (
+            <input
+                type="text"
+                placeholder={placeholder}
+                value={value}
+                onChange={onChange}
+                className={`flex h-10 w-full rounded-md border border-input 
+bg-background px-3 py-2 text-sm ring-offset-background file:border-0 
+file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground 
+focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring 
+focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 
+${className}`}
+            />
+        );
+        // --- Generic Button Component for DataTable navigation ---
+        const Button = ({ variant = "default", onClick, disabled, className, 
+children }) => {
+            let baseClasses = "inline-flex items-center justify-center 
+whitespace-nowrap rounded-md text-sm font-medium ring-offset-background 
+transition-colors focus-visible:outline-none focus-visible:ring-2 
+focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none 
+disabled:opacity-50 px-4 py-2";
+            let variantClasses = "";
+            if (variant === "outline") {
+                variantClasses = "border border-input bg-background hover:bg-accent 
+hover:text-accent-foreground";
+            } else {
+                variantClasses = "bg-primary text-primary-foreground 
+hover:bg-primary/90"; // Assuming primary bg for default
+            }
+            return (
+                <button
+                    onClick={onClick}
+                    disabled={disabled}
+                    className={`${baseClasses} ${variantClasses} ${className}`}
+                >
+                    {children}
+                </button>
+            );
+
+        };
+        // --- Generic DataTable Component (with search and sort) ---
+        function DataTable({ title, description, columns, rows }) {
+            const [query, setQuery] = useState("");
+            const [sortKey, setSortKey] = useState(columns[0].key);
+            const [asc, setAsc] = useState(true);
+            const filtered = useMemo(() => {
+                const q = query.toLowerCase();
+                return rows
+                    .filter((r) =>
+                        Object.values(r).some((v) => 
+String(v).toLowerCase().includes(q))
+                    )
+                    .sort((a, b) => {
+                        const va = String(a[sortKey]).toLowerCase();
+                        const vb = String(b[sortKey]).toLowerCase();
+                        if (va < vb) return asc ? -1 : 1;
+                        if (va > vb) return asc ? 1 : -1;
+                        return 0;
+                    });
+            }, [rows, query, sortKey, asc]);
+            return (
+                <Card className="shadow-lg rounded-2xl">
+                    <CardContent className="p-6">
+                        <div className="flex flex-col gap-2 mb-4">
+                            <h3 className="text-xl font-semibold">{title}</h3>
+                            {description && <p 
+className="text-gray-600">{description}</p>}
+                            <div className="flex gap-3 items-center">
+                                <Input
+                                    placeholder="Search..."
+                                    value={query}
+                                    onChange={(e) => setQuery(e.target.value)}
+                                    className="max-w-sm"
+                                />
+                            </div>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full text-sm border-separate 
+border-spacing-y-2">
+                                <thead>
+                                    <tr className="border-b">
+                                        {columns.map((c) => (
+                                            <th
+                                                key={c.key}
+                                                className="text-left py-2 pr-4 
+font-medium cursor-pointer select-none"
+
+                                                onClick={() => {
+                                                    if (sortKey === c.key) 
+setAsc(!asc);
+                                                    else {
+                                                        setSortKey(c.key);
+                                                        setAsc(true);
+                                                    }
+                                                }}
+                                            >
+                                                <div className="flex items-center 
+gap-1">
+                                                    <span>{c.label}</span>
+                                                    {sortKey === c.key && (
+                                                        <span 
+className="text-gray-400">{asc ? "▲" : "▼"}</span>
+                                                    )}
+                                                </div>
+                                            </th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filtered.map((row, i) => (
+                                        <tr key={i} className="border-b 
+last:border-0 align-top">
+                                            {columns.map((c) => (
+                                                <td key={c.key} className="py-2 
+pr-4">
+                                                    {String(row[c.key])}
+                                                </td>
+                                            ))}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </CardContent>
+                </Card>
+            );
+        }
+        // --- Data Components (as provided in your code) ---
+        const LimitTable = () => {
+            const rows = useMemo(() => [
+                {
+                    region: "European Union",
+                    regs: [
+                        "Reg. (EU) 2018/290 (GE)",
+                        "Reg. (EU) 2020/1322",
+                        "Reg. (EU) 2023/915",
+
+                        "Reg. (EU) 2024/1003 (infant formulas)"
+                    ],
+                    limits: [
+                        "Vegetable oils & fats – adult/general market:",
+                        "• Palm & palm kernel: 3-MCPD + esters = 2.5 ppm",
+                        "• Seed/coconut/rapeseed/soy/sunflower/maize: 3-MCPD + 
+esters = 1.25 ppm",
+                        "• GE (as glycidol) = 1.0 ppm",
+                        "Infant/young-child formulas:",
+                        "• Powder: 0.080 ppm (80 μg/kg) (3-MCPD + esters)",
+                        "• Liquid: 0.012 ppm (12 µg/kg) (3-MCPD + esters)"
+                    ],
+                    notes: "EU progressively tightened limits; palm oils impacted 
+more due to higher DAGs. New infant formula limits apply from Jan 2025."
+                },
+                {
+                    region: "United States",
+                    regs: [
+                        "FDA guidance & monitoring",
+                        "Codex CXC 79-2019",
+                        "JECFA evaluations"
+                    ],
+                    limits: [
+                        "No fixed MLs for all oils.",
+                        "JECFA PMTDI: 4 µg/kg bw/day (3-MCPD + esters).",
+                        "GE: ALARA (as low as reasonably achievable)."
+                    ],
+                    notes: "US relies on guidance/monitoring; closer scrutiny for 
+infant formula."
+                },
+                {
+                    region: "Codex / JECFA",
+                    regs: ["CXC 79-2019", "JECFA"],
+                    limits: [
+                        "PMTDI 4 µg/kg bw/day for 3-MCPD + esters.",
+                        "GE considered genotoxic – ALARA applies."
+                    ],
+                    notes: "Benchmarks used by many regions."
+                },
+                {
+                    region: "Other Regions (FSANZ, Singapore, China, etc.)",
+                    regs: ["National monitoring / risk assessments"],
+                    limits: [
+                        "No uniform MLs across all oils; often reference EU/Codex.",
+                        "Some sauces (e.g., HVP/soy sauce) have specific free 3-MCPD
+limits (e.g., 20 µg/kg)."
+                    ],
+                    notes: "Regional variation; monitoring programs common."
+                }
+            ], []);
+
+            return (
+                <div className="overflow-x-auto">
+                    <table className="min-w-full border-separate 
+border-spacing-y-2">
+                        <thead>
+                            <tr>
+                                <th className="text-left text-sm font-semibold 
+text-gray-600">Region</th>
+                                <th className="text-left text-sm font-semibold 
+text-gray-600">Key Regulations / Standards</th>
+                                <th className="text-left text-sm font-semibold 
+text-gray-600">Limits / Maximum Levels</th>
+                                <th className="text-left text-sm font-semibold 
+text-gray-600">Notes / Changes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.map((r, i) => (
+                                <tr key={i} className="align-top">
+                                    <td className="py-3 pr-4">
+                                        <div 
+className="font-medium">{r.region}</div>
+                                    </td>
+                                    <td className="py-3 pr-4">
+                                        <ul className="list-disc pl-5 space-y-1">
+                                            {r.regs.map((x, j) => (
+                                                <li key={j}>{x}</li>
+                                            ))}
+                                        </ul>
+                                    </td>
+                                    <td className="py-3 pr-4">
+                                        <ul className="list-disc pl-5 space-y-1">
+                                            {r.limits.map((x, j) => (
+                                                <li key={j}>{x}</li>
+                                            ))}
+                                        </ul>
+                                    </td>
+                                    <td className="py-3 pr-4 text-sm 
+text-gray-600">{r.notes}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            );
+        };
+        const MitigationLeversTable = () => {
+            const rows = useMemo(() => [
+
+                {
+                    step: "Alkaline neutralization / re-refining",
+                    effect: "Degrades some 3-MCPD esters and lowers precursors; 
+reduces FFAs.",
+                    drawbacks: "High chemical use, neutral oil loss (soapstock), 
+wastewater; cost/energy/time; removes minor components.",
+                    feasible: "Feasible for premium/special grades; commodity scale 
+faces capex/opex and yield penalties."
+                },
+                {
+                    step: "Water washing / chlorine precursor removal 
+(pre-refining/degumming)",
+                    effect: "Very effective at removing soluble chloride precursors 
+before they form esters.",
+                    drawbacks: "Higher water use, effluent treatment, 
+cooling/reheating; mixing/separation equipment needed.",
+                    feasible: "Often the most practical incremental improvement; 
+moderate throughput impact."
+                },
+                {
+                    step: "Optimized bleaching / earth choice & dosage",
+                    effect: "Adsorption of trace metals/impurities; can reduce 
+precursors and downstream formation.",
+                    drawbacks: "Higher earth cost & disposal; oil adsorption loss; 
+potential colour/flavour impacts; cycle time increases.",
+                    feasible: "Widely feasible; may require filter/handling 
+adjustments; less severe than full re-refining."
+                },
+                {
+                    step: "Lower deodorization T / shorter residence / better vacuum
+& steam",
+                    effect: "Largest lever; formation mostly occurs in 
+deodorization; optimizing conditions reduces 3-MCPDE/GE.",
+                    drawbacks: "Risk of residual odours/volatiles; may require 
+better vacuum/steam systems; possible throughput drop.",
+                    feasible: "Common incremental path (e.g., -10-20 °C, improved 
+steam/vacuum, tighter residence control)."
+                },
+                {
+                    step: "Post-refining polishing (adsorbents/short-path/mild 
+re-deodo)",
+                    effect: "Can ‘polish down' residual esters after formation.",
+                    drawbacks: "Extra capex/energy; yield loss; possible quality 
+shifts; bottlenecks.",
+                    feasible: "Used for high-value lines or when required by 
+regulation/specs."
+                }
+            ], []);
+            return (
+
+                <div className="overflow-x-auto">
+                    <table className="min-w-full border-separate 
+border-spacing-y-2">
+                        <thead>
+                            <tr>
+                                <th className="text-left text-sm font-semibold 
+text-gray-600">Process Step / Lever</th>
+                                <th className="text-left text-sm font-semibold 
+text-gray-600">Effect on 3-MCPD / Esters / GE</th>
+                                <th className="text-left text-sm font-semibold 
+text-gray-600">Drawbacks / Penalties</th>
+                                <th className="text-left text-sm font-semibold 
+text-gray-600">Feasibility (NA / existing plants)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.map((r, i) => (
+                                <tr key={i} className="align-top">
+                                    <td className="py-3 pr-4 
+font-medium">{r.step}</td>
+                                    <td className="py-3 pr-4">{r.effect}</td>
+                                    <td className="py-3 pr-4">{r.drawbacks}</td>
+                                    <td className="py-3 pr-4">{r.feasible}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            );
+        };
+        const MOSHMOAHBullets = () => (
+            <ul className="list-disc pl-6 space-y-2">
+                <li><strong>MOSH</strong> = Mineral Oil Saturated Hydrocarbons; 
+<strong>MOAH</strong> = Mineral Oil Aromatic Hydrocarbons.</li>
+                <li>Sources: lubricants, packaging migration (recycled board/jute), 
+storage/transport, process aids; some environmental ubiquity.</li>
+                <li>Removal behaviour: lighter fractions (=C&lt;35) more strippable;
+heavier/aromatic fractions persist and need severe conditions.</li>
+                <li>Key levers: optimized deodorization (deep vacuum, efficient 
+steam), optional pre-/post-stripping (short-path/molecular), targeted adsorbents, 
+plus strong upstream GMP to prevent ingress.</li>
+            </ul>
+        );
+        const MCPDMethods = () => {
+            const rows = useMemo(() => [
+                { method: "ISO 18363-1 (fast alkaline)", notes: "Transesterification
+→ GC/MS; releases bound MCPD/glycidol for quantification." },
+                { method: "ISO 18363-2 (slow alkaline)", notes: "Alternative 
+
+alkaline path; helps mitigate artefacts in some matrices." },
+                { method: "ISO 18363-3 (acid)", notes: "Acid transesterification; 
+widely used; pairs with PBA/HFBI derivatization." },
+                { method: "AOCS Cd 29 series", notes: "AOCS methods aligned to ISO 
+variants; use internal standards and GC(/MS)." },
+            ], []);
+            return (
+                <div className="overflow-x-auto">
+                    <table className="min-w-full border-separate 
+border-spacing-y-2">
+                        <thead>
+                            <tr>
+                                <th className="text-left text-sm font-semibold 
+text-gray-600">Standard</th>
+                                <th className="text-left text-sm font-semibold 
+text-gray-600">Scope / Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.map((r, i) => (
+                                <tr key={i} className="align-top">
+                                    <td className="py-3 pr-4 
+font-medium">{r.method}</td>
+                                    <td className="py-3 pr-4">{r.notes}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            );
+        };
+        const MOSHMOAHMethods = () => {
+            const rows = useMemo(() => [
+                { method: "LC-GC (online HPLC→GC, GC-FID)", notes: "Separates MOSH 
+vs MOAH fractions; routine monitoring in many labs." },
+                { method: "GC×GC (2D GC)", notes: "Higher resolution of MOAH 
+subclasses and MOSH distributions; research/advanced QC." },
+                { method: "Polishing/Prep", notes: "Sample cleanup to remove 
+triglycerides, waxes, POSH; careful to avoid artefacts." },
+            ], []);
+            return (
+                <div className="overflow-x-auto">
+                    <table className="min-w-full border-separate 
+border-spacing-y-2">
+                        <thead>
+                            <tr>
+                                <th className="text-left text-sm font-semibold 
+
+text-gray-600">Technique</th>
+                                <th className="text-left text-sm font-semibold 
+text-gray-600">Scope / Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.map((r, i) => (
+                                <tr key={i} className="align-top">
+                                    <td className="py-3 pr-4 
+font-medium">{r.method}</td>
+                                    <td className="py-3 pr-4">{r.notes}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            );
+        };
+        const LODLOQ = () => {
+            const rows = useMemo(() => [
+                { analyte: "3-MCPD/GE (ISO 18363-3, fats/oils)", loq: "≈0.10 mg/kg 
+(100 μg/kg)", lod: "≈0.03 mg/kg (30 μg/kg)" },
+                { analyte: "3-MCPD/GE (infant/low-matrix, advanced GC/MS)", loq: "≈1
+-10 µg/kg (method-dependent)", lod: "≈1 µg/kg or below" },
+                { analyte: "MOSH/MOAH (LC-GC, favourable matrices)", loq: "≈0.1-2.5 
+mg/kg (typical claims)", lod: "method-/matrix-dependent" },
+            ], []);
+            return (
+                <div className="overflow-x-auto">
+                    <table className="min-w-full border-separate 
+border-spacing-y-2">
+                        <thead>
+                            <tr>
+                                <th className="text-left text-sm font-semibold 
+text-gray-600">Analyte / Method</th>
+                                <th className="text-left text-sm font-semibold 
+text-gray-600">Typical LOQ</th>
+                                <th className="text-left text-sm font-semibold 
+text-gray-600">Typical LOD</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.map((r, i) => (
+                                <tr key={i} className="align-top">
+                                    <td className="py-3 pr-4 
+font-medium">{r.analyte}</td>
+                                    <td className="py-3 pr-4">{r.loq}</td>
+                                </tr>
+
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            );
+        };
+        const TypicalValues = () => (
+            <div className="space-y-4">
+                <p className="text-sm text-gray-700">Note: Values below are 
+indicative ranges compiled from published studies outside NA; use your own lab data 
+for specifications.</p>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full border-separate 
+border-spacing-y-2">
+                        <thead>
+                            <tr>
+                                <th className="text-left text-sm font-semibold 
+text-gray-600">Oil</th>
+                                <th className="text-left text-sm font-semibold 
+text-gray-600">3-MCPD esters / GE (mg/kg)</th>
+                                <th className="text-left text-sm font-semibold 
+text-gray-600">MOSH (mg/kg)</th>
+                                <th className="text-left text-sm font-semibold 
+text-gray-600">MOAH (mg/kg)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr className="align-top">
+                                <td className="py-3 pr-4 font-medium">Palm / Palm 
+Olein</td>
+                                <td className="py-3 pr-4">GE ~0.5-2 (mitigated); up 
+to ~3-5 in older data</td>
+                                <td className="py-3 pr-4">~20–120 (broad survey 
+ranges)</td>
+                                <td className="py-3 pr-4">~&lt;2-40 
+(method-dependent)</td>
+                            </tr>
+                            <tr className="align-top">
+                                <td className="py-3 pr-4 font-medium">Palm 
+Stearin</td>
+                                <td className="py-3 pr-4">Similar order as palm; 
+often slightly lower GE after fractionation</td>
+                                <td className="py-3 pr-4">Similar order; depends on 
+cut and refining</td>
+                                <td className="py-3 pr-4">Often lower than olein for
+MOAH</td>
+                            </tr>
+                            <tr className="align-top">
+                                <td className="py-3 pr-4 font-medium">Coconut</td>
+
+                                <td className="py-3 pr-4">Often &lt;1 when refining 
+is mild</td>
+                                <td className="py-3 pr-4">Varies; some reports of 
+higher MOSH possible</td>
+                                <td className="py-3 pr-4">Typically low; often near 
+LOQ</td>
+                            </tr>
+                            <tr className="align-top">
+                                <td className="py-3 pr-4 font-medium">Soybean</td>
+                                <td className="py-3 pr-4">Typically &lt;1 
+(0.3-0.8)</td>
+                                <td className="py-3 pr-4">Low tens or below</td>
+                                <td className="py-3 pr-4">Often &lt; LOQ</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+        // --- Data Definitions for Presentation (from your code) ---
+        const geLimits = {
+            columns: [
+                { key: "matrix", label: "Matrix" },
+                { key: "ml", label: "Max Level (µg/kg)" },
+                { key: "note", label: "Note" },
+            ],
+            rows: [
+                { matrix: "Oils & fats (final consumer or ingredient)", ml: "1,000",
+note: "Except virgin olive oils" },
+                { matrix: "Oils & fats for baby-food production", ml: "500", note: 
+"Applies to mixture as used" },
+                { matrix: "Infant/young-child formula (powder)", ml: "50", note: 
+"Product as sold" },
+                { matrix: "Infant/young-child formula (liquid)", ml: "6", note: 
+"Product as sold" },
+            ],
+        };
+        const mcpdLimits = {
+            columns: [
+                { key: "matrix", label: "Matrix" },
+                { key: "ml", label: "Max Level (µg/kg)" },
+                { key: "examples", label: "Examples" },
+            ],
+            rows: [
+                {
+                    matrix: "Oils & fats (Tier 1)",
+                    ml: "1,250",
+                    examples: "Coconut, maize, rapeseed, sunflower, soybean, palm 
+
+kernel, composed olive",
+                },
+                {
+                    matrix: "Oils & fats (Tier 2)",
+                    ml: "2,500",
+                    examples: "Other vegetable oils (incl. pomace olive), marine 
+oils",
+                },
+                { matrix: "Oils & fats for baby-food production", ml: "750", 
+examples: "Mixtures must meet ML" },
+                { matrix: "Infant/young-child formula (powder)", ml: "125", 
+examples: "Product as sold" },
+                { matrix: "Infant/young-child formula (liquid)", ml: "15", examples:
+"Product as sold" },
+            ],
+        };
+        const moahPolicy = {
+            columns: [
+                { key: "product", label: "Product / Fat Content" },
+                { key: "loq", label: "MOAH Recall Threshold (mg/kg)" },
+                { key: "basis", label: "Basis" },
+            ],
+            rows: [
+                { product: "Dry foods ≤4% fat", loq: "0.5", basis: "EU enforcement 
+at LOQ" },
+                { product: ">4–50% fat", loq: "1.0", basis: "EU enforcement at LOQ" 
+},
+                { product: ">50% fat or fats/oils", loq: "2.0", basis: "EU 
+enforcement at LOQ" },
+            ],
+        };
+        const typicalValuesTableData = { // Renamed to avoid clash with 
+TypicalValues component
+            columns: [
+                { key: "oil", label: "Oil / Fraction" },
+                { key: "mcpd", label: "3-MCPD (µg/kg)" },
+                { key: "ge", label: "GE (µg/kg)" },
+                { key: "mosh", label: "MOSH (mg/kg)" },
+                { key: "moah", label: "MOAH (mg/kg)" },
+                { key: "notes", label: "Notes" },
+            ],
+            rows: [
+                {
+                    oil: "Red Palm Oil",
+                    mcpd: "2,000-5,000",
+                    ge: "2,000-6,000",
+                    mosh: "10-50",
+                    moah: "<2 (aim ND)",
+
+                    notes: "Highest risk; strong process sensitivity",
+                },
+                {
+                    oil: "Palm Olein",
+                    mcpd: "2,000-3,000",
+                    ge: "1,000-3-000", // Corrected typo here, was "1,000-3,000" in 
+original code for this data point
+                    mosh: "10-30",
+                    moah: "<2 (aim ND)",
+                    notes: "Post-mitigation often below MLs",
+                },
+                {
+                    oil: "Palm Stearin",
+                    mcpd: "3,000-5,000",
+                    ge: "2,000-4,000",
+                    mosh: "10-20",
+                    moah: "<1 (aim ND)",
+                    notes: "DAG/FFA management important",
+                },
+                {
+                    oil: "Coconut Oil",
+                    mcpd: "<1,000",
+                    ge: "1,000-2,000",
+                    mosh: "5-30 (often ~20–26)",
+                    moah: "ND",
+                    notes: "Watch MOSH baseline; MOAH normally ND",
+                },
+                {
+                    oil: "Soybean Oil (refined)",
+                    mcpd: "500-1,500",
+                    ge: "500-1,000",
+                    mosh: "5-20",
+                    moah: "ND",
+                    notes: "Generally well below EU tiers",
+                },
+            ],
+        };
+        // --- NEW DATA FOR BUNGE PRODUCTS ---
+        const bungeProductsData = {
+            columns: [
+                { key: "name", label: "Name" },
+                { key: "mcpd", label: "3MCPD" },
+                { key: "ge", label: "GE" },
+            ],
+            rows: [
+                { name: "Freedom IC 600", mcpd: "2.31 ± 0.27", ge: "1.41 ± 0.25" },
+                { name: "SansTrans PF", mcpd: "2.38 ± 0.18", ge: "1.17 ± 0.18" },
+                { name: "Freedom 300 G", mcpd: "2.09 ± 0.15", ge: "1.04 ± 0.18" },
+                { name: "SansTrans 48", mcpd: "2.56 ± 0.30", ge: "1.77 ± 0.40" },
+
+                { name: "Coco 60", mcpd: "1.44 ± 0.22", ge: "0.81 ± 0.15" },
+                { name: "SansTrans 39", mcpd: "2.82 ± 0.33", ge: "1.95 ± 0.39" },
+            ],
+        };
+        // --- Presentation Slides Definition ---
+        const slides = [
+            {
+                type: "title",
+                title: "Processing Contaminants in Edible Oils",
+                content:
+                    "Focus on 3-MCPD & Glycidyl Esters (GE), and MOSH & MOAH – with 
+chemistry, risk, sources, mitigation, regulations, analytics, market status, and 
+Bunge practices",
+            },
+            // ======== 3-MCPD & GE ========
+            {
+                type: "text",
+                title: "3-MCPD & GE – What are they? (with structure)",
+                content:
+                    "3-MCPD = 3-Monochloropropane-1,2-diol; exists free or 
+esterified to fatty acids. GE = glycidyl esters of fatty acids. Structural motifs: 
+chlorinated glycerol backbone (3-MCPD); epoxide ring on glycidyl moiety (GE). Form 
+mainly during high-temp refining (deodorization).",
+            },
+            {
+                type: "text",
+                title: "3-MCPD & GE – Why are they harmful?",
+                content:
+                    "Toxicology: 3-MCPD (and its esters, hydrolyzed in vivo) linked 
+to kidney/testicular effects in animals; GE release glycidol (genotoxic carcinogen).
+Hence strict EU MLs, especially for infant foods.",
+            },
+            {
+                type: "text",
+                title: "3-MCPD & GE – Where do they come from?",
+                content:
+                    "Precursors: chloride (process water, salts in crude palm), 
+DAG/monoacylglycerols, FFA. Risk multipliers: high deodorization temperature/time; 
+acidic conditions upstream; catalyst effects of some bleaching earths.",
+            },
+            {
+                type: "text",
+                title: "3-MCPD & GE – How to mitigate (industrial practices)",
+                content:
+                    "At origin: wash/soft-water to reduce chlorides; manage fruit 
+handling to limit DAG/FFA. In refining: water/enzymatic/soft-acid degumming; 
+optimized bleaching earths; lower-temp or dual-temp deodorization with deep vacuum 
+and efficient stripping; optional post-stripping/short-path. Balance color/FFA vs 
+
+capacity.",
+            },
+            { type: "table", title: "3-MCPD & GE Regulations & Limits (EU MLs)", 
+description: "Copy-ready tables", table: mcpdLimits },
+            { type: "table", title: "GE Regulations & Limits (EU MLs)", description:
+"Copy-ready tables", table: geLimits },
+            {
+                type: "text",
+                title: "3-MCPD & GE – Analytical",
+                content:
+                    "Methods: ISO 18363-3/-4; AOCS Cd 29x-13; GC-MS(/MS) after 
+cleavage/derivatization. Performance: LOQ ≈ 0.1 mg/kg per analyte in oils; lower 
+LOQs required for infant matrices. Controls: reference materials, spiking 
+recoveries, split-route confirmation (direct vs indirect).",
+            },
+            {
+                type: "table",
+                title: "3-MCPD & GE Typical values (NA market)",
+                description:
+                    "Indicative ranges; verify against your own datasets and 
+year-to-year shifts",
+                table: typicalValuesTableData, // Use the renamed data
+            },
+            // ======== MOSH & MOAH ========
+            {
+                type: "text",
+                title: "MOSH & MOAH – What are they? (with structure)",
+                content:
+                    "MOSH = mineral oil saturated hydrocarbons 
+(linear/branched/cyclic alkanes). MOAH = aromatic fraction (1+ rings). They are 
+contaminants that ingress along the value chain; not formed by refining chemistry 
+like 3-MCPD/GE.",
+            },
+            {
+                type: "text",
+                title: "MOSH & MOAH – Why are they harmful?",
+                content:
+                    "MOSH may accumulate in human tissues; MOAH contains 
+genotoxic/carcinogenic PAH-like species (focus on 3–7 ring). Regulators target MOAH 
+at non-detect (LOQ) pending binding MLs.",
+            },
+            {
+                type: "text",
+                title: "MOSH & MOAH – Where do they come from?",
+                content:
+                    "Ingress drivers: non-food-grade lubricants in 
+crushing/refining/transport; batching oils on jute/sisal bags; recycled-fiber 
+packaging and printing inks; environmental mineral oil residues.",
+            },
+            {
+
+                type: "text",
+                title: "MOSH & MOAH – How to mitigate (industrial practices)",
+                content:
+                    "Source control first: food-grade lubricants, clean packaging 
+(virgin fiber or functional barriers), audited logistics/containers, avoidance of 
+jute batching oils, sealed transfers. Processing can reduce some MOSH, but MOAH must
+be prevented (aim non-detect).",
+            },
+            { type: "table", title: "MOAH – EU Harmonised Recall Thresholds (LOQ)", 
+description: "Applied by authorities until MLs are set", table: moahPolicy },
+            {
+                type: "text",
+                title: "MOSH & MOAH – Analytical",
+                content:
+                    "Primary: LC-GC-FID per EN 16995 / ISO 20122 with C10-C50 
+profiling; confirmatory LC×GC-MS for false-positive control. Routine MOAH LOQ in 
+oils ≈ 0.5-2 mg/kg depending on fat level and lab setup.",
+            },
+            {
+                type: "text",
+                title: "MOSH & MOAH – NA market status",
+                content:
+                    "Most refined seed oils: MOAH non-detect at LOQ; MOSH varies by 
+oil (e.g., coconut often shows higher MOSH baseline). Retail and infant channels 
+increasingly contract to MOAH non-detect specs.",
+            },
+            // ======== Bunge customer practices ========
+            {
+                type: "text",
+                title: "What Bunge does for our customers",
+                content:
+                    "Governance: Adopt EU MLs as global reference; internal targets 
+at 50-70% of ML to provide customer headroom. 3-MCPD/GE: supplier qualification on 
+chloride/DAG/FFA, plant SOPs for degumming/bleaching/deodorization, optional 
+post-stripping where needed, continuous monitoring (ISO 18363/AOCS). MOH: end-to-end
+source-control program (food-grade lubricants, packaging barriers, logistics 
+audits), LC-GC-FID screening with MS confirmation for outliers, MOAH non-detect 
+policy aligned to EU LOQs. Customer support: joint troubleshooting at origins, 
+mitigation playbooks, CoA + periodic surveillance reports, and reformulation 
+guidance when specs tighten (e.g., infant foods).",
+            },
+            {
+                type: "text",
+                title: "Key Takeaways / Next Steps",
+                content:
+                    "Maintain dual KPIs: compliance vs throughput/quality. 
+Prioritize prevention (MOAH) and process control (3-MCPD/GE). Align suppliers to 
+packaging and lubricant standards. Establish internal early-warning dashboards and 
+annual method re-validation at target LOQs.",
+            },
+
+            // ======== NEW SLIDE: Bunge's Selected Products Data ========
+            {
+                type: "table",
+                title: "Bunge's Information on Selected Products",
+                description: "Average 3MCPD and GE levels for selected Bunge 
+products.",
+                table: bungeProductsData,
+            },
+        ];
+        // --- Main Presentation Component ---
+        function ContaminantsPresentation() {
+            // Debugging: Confirm component renders
+            console.log("ContaminantsPresentation component rendering.");
+            const [index, setIndex] = useState(0);
+            const current = slides[index];
+            return (
+                <div className="min-h-screen bg-gray-50 flex flex-col items-center 
+p-6">
+                    <div className="w-full max-w-5xl">
+                        <motion.div
+                            key={index} // Key for Framer Motion to detect content 
+change and animate
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.35 }}
+                            className="mb-6"
+                        >
+                            <Card className="shadow-xl rounded-2xl">
+                                <CardContent className="p-6">
+                                    <h2 className="text-2xl md:text-3xl font-bold 
+mb-4">{current.title}</h2>
+                                    {current.type === "text" && (
+                                        <p className="text-gray-700 text-lg 
+leading-relaxed">{current.content}</p>
+                                    )}
+                                    {current.type === "title" && (
+                                        <div className="text-gray-700 
+text-lg">{current.content}</div>
+                                    )}
+                                    {current.type === "table" && (
+                                        <DataTable
+                                            title={current.title}
+                                            description={current.description}
+                                            columns={current.table.columns}
+                                            rows={current.table.rows}
+                                        />
+                                    )}
+
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                        <div className="flex items-center justify-between gap-3">
+                            <Button
+                                variant="outline"
+                                onClick={() => setIndex((i) => Math.max(0, i - 1))}
+                                disabled={index === 0}
+                                className="rounded-2xl"
+                            >
+                                ← Previous
+                            </Button>
+                            <div className="text-sm text-gray-500">Slide {index + 1}
+/ {slides.length}</div>
+                            <Button
+                                onClick={() => setIndex((i) => 
+Math.min(slides.length - 1, i + 1))}
+                                disabled={index === slides.length - 1}
+                                className="rounded-2xl"
+                            >
+                                Next →
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+        // --- Mount the React app ---
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<ContaminantsPresentation />);
+        // Debugging: Confirm app mounted
+        console.log("React app mounted to #root.");
+    </script>
+</body>
+</html>
